@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from aiogram import BaseMiddleware
+from aiogram import BaseMiddleware, Router
 from aiogram.filters import Filter
 from aiogram.types import CallbackQuery, Message, TelegramObject
 from aiogram.types import User as TelegramUser
@@ -12,6 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import ClientConfig
 from app.db import SessionFactory
 from app.models import User
+
+Handler = Callable[..., Awaitable[Any]]
 
 
 class HasMessage(Filter):
@@ -63,3 +65,43 @@ async def save_language(session: AsyncSession, user_id: int, lang: str) -> None:
     else:
         user.lang = lang
     await session.commit()
+
+
+class Routes:
+    def __init__(
+        self,
+        name: str,
+        message_filters: tuple[Filter, ...] = (),
+        callback_filters: tuple[Filter, ...] = (),
+    ) -> None:
+        self._name = name
+        self._message_filters = message_filters
+        self._callback_filters = callback_filters
+        self._messages: list[tuple[Handler, tuple[Any, ...]]] = []
+        self._callbacks: list[tuple[Handler, tuple[Any, ...]]] = []
+
+    def message(self, *filters: Any) -> Callable[[Handler], Handler]:
+        def register(handler: Handler) -> Handler:
+            self._messages.append((handler, filters))
+            return handler
+
+        return register
+
+    def callback_query(self, *filters: Any) -> Callable[[Handler], Handler]:
+        def register(handler: Handler) -> Handler:
+            self._callbacks.append((handler, filters))
+            return handler
+
+        return register
+
+    def build(self) -> Router:
+        router = Router(name=self._name)
+        if self._message_filters:
+            router.message.filter(*self._message_filters)
+        if self._callback_filters:
+            router.callback_query.filter(*self._callback_filters)
+        for handler, filters in self._messages:
+            router.message.register(handler, *filters)
+        for handler, filters in self._callbacks:
+            router.callback_query.register(handler, *filters)
+        return router

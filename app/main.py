@@ -32,7 +32,7 @@ def build_dispatcher(
     dispatcher["crm"] = crm
     dispatcher.update.outer_middleware(ContextMiddleware(session_factory, config))
     for module in (start, owner, catalog, cart, checkout):
-        dispatcher.include_router(module.router)
+        dispatcher.include_router(module.router.build())
     return dispatcher
 
 

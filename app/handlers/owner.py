@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import logging
 
-from aiogram import Bot, Router
+from aiogram import Bot
 from aiogram.exceptions import TelegramAPIError
 from aiogram.filters import Command, CommandObject
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import ClientConfig
-from app.handlers.common import OwnerChat
+from app.handlers.common import OwnerChat, Routes
 from app.i18n import Translator
 from app.models import STATUSES
 from app.orders import recent_orders, set_status
@@ -17,8 +17,7 @@ from app.texts import orders_list_text, status_label
 
 logger = logging.getLogger(__name__)
 
-router = Router(name="owner")
-router.message.filter(OwnerChat())
+router = Routes("owner", message_filters=(OwnerChat(),))
 
 
 def parse_status_args(args: str | None) -> tuple[int, str] | None:

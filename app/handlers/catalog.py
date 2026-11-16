@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from aiogram import F, Router
+from aiogram import F
 from aiogram.exceptions import TelegramAPIError
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
@@ -10,15 +10,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.cart import UnknownProductError, change_quantity
 from app.config import ClientConfig, Product, pick
-from app.handlers.common import HasMessage, payload
+from app.handlers.common import HasMessage, Routes, payload
 from app.i18n import Translator
 from app.keyboards import categories_keyboard, category_footer_keyboard, product_keyboard
 from app.texts import format_money
 
 logger = logging.getLogger(__name__)
 
-router = Router(name="catalog")
-router.callback_query.filter(HasMessage())
+router = Routes("catalog", callback_filters=(HasMessage(),))
 
 
 async def send_categories(

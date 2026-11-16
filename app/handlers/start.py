@@ -1,18 +1,17 @@
 from __future__ import annotations
 
-from aiogram import F, Router
+from aiogram import F
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import ClientConfig, pick
-from app.handlers.common import HasMessage, payload, save_language
+from app.handlers.common import HasMessage, Routes, payload, save_language
 from app.i18n import Translator
 from app.keyboards import language_keyboard, menu_keyboard
 
-router = Router(name="start")
-router.callback_query.filter(HasMessage())
+router = Routes("start", callback_filters=(HasMessage(),))
 
 
 async def send_menu(msg: Message, config: ClientConfig, translator: Translator, lang: str) -> None:

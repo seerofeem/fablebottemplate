@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from aiogram import Bot, F, Router
+from aiogram import Bot, F
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.cart import get_cart
 from app.config import ClientConfig
-from app.handlers.common import HasMessage, payload
+from app.handlers.common import HasMessage, Routes, payload
 from app.i18n import Translator, join_lines
 from app.keyboards import (
     cancel_keyboard,
@@ -33,8 +33,7 @@ NAME_LENGTH = (2, 64)
 ADDRESS_LENGTH = (5, 300)
 PHONE_DIGITS = (10, 15)
 
-router = Router(name="checkout")
-router.callback_query.filter(HasMessage())
+router = Routes("checkout", callback_filters=(HasMessage(),))
 
 
 class Checkout(StatesGroup):
