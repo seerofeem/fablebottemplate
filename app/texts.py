@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 from app.cart import Cart
@@ -139,6 +140,11 @@ def owner_order_text(
     return join_lines([text, crm]) if crm else text
 
 
+def local_time(moment: datetime, zone: ZoneInfo) -> datetime:
+    aware = moment if moment.tzinfo is not None else moment.replace(tzinfo=UTC)
+    return aware.astimezone(zone)
+
+
 def status_label(translator: Translator, lang: str, status: str) -> str:
     return translator.plain(lang, f"status_{status}")
 
@@ -156,7 +162,7 @@ def orders_list_text(
                 lang,
                 "orders_line",
                 id=order.id,
-                created=order.created_at.astimezone(zone).strftime("%d.%m %H:%M"),
+                created=local_time(order.created_at, zone).strftime("%d.%m %H:%M"),
                 name=order.customer_name,
                 phone=order.phone,
                 total=format_money(order.total, order.currency),

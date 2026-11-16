@@ -167,3 +167,10 @@ def test_translator_escapes_values_once(translator: Translator) -> None:
     nested = translator.t("ru", "welcome", shop="A&B", welcome=line)
     assert nested.count("&amp;") == 2
     assert "&amp;amp;" not in nested
+
+
+def test_settings_errors_hide_secrets(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("BITRIX_WEBHOOK_URL", raising=False)
+    with pytest.raises(ValidationError) as error:
+        Settings(_env_file=None, bot_token="1:very-secret-token", crm_enabled=True)
+    assert "very-secret-token" not in str(error.value)

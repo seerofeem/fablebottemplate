@@ -4,6 +4,7 @@ from collections.abc import AsyncGenerator, AsyncIterator
 from datetime import UTC, datetime
 from typing import Any
 
+import httpx
 import pytest
 from aiogram import Bot, Dispatcher
 from aiogram.client.session.base import BaseSession
@@ -18,6 +19,7 @@ from aiogram.methods import (
 from aiogram.types import Chat, Message
 from sqlalchemy import select
 
+from app.bitrix import BitrixClient
 from app.config import ClientConfig
 from app.db import SessionFactory
 from app.handlers.checkout import normalize_phone
@@ -356,3 +358,55 @@ def test_normalize_phone(raw: str, expected: str | None) -> None:
 )
 def test_parse_status_args(args: str | None, expected: tuple[int, str] | None) -> None:
     assert parse_status_args(args) == expected
+
+
+async def order_with_crm(
+    config: ClientConfig,
+    translator: Translator,
+    session_factory: SessionFactory,
+    telegram: RecordingSession,
+    handler: httpx.MockTransport,
+) -> list[SendMessage]:
+    async with httpx.AsyncClient(transport=handler) as http:
+        crm = BitrixClient("https://example.bitrix24.kz/rest/1/secret-token/", http, "Gül Almaty")
+        dispatcher = build_dispatcher(config, translator, session_factory, crm)
+        client = Client(dispatcher, Bot(TOKEN, session=telegram), telegram)
+        await client.press("lang:ru")
+        await client.press("add:card")
+        await client.press("checkout")
+        await client.text("Айгерим")
+        await client.text("+77011234567")
+        await client.press("dlv:pickup")
+        calls = await client.press("confirm")
+        await dispatcher.storage.close()
+    return [call for call in calls if isinstance(call, SendMessage)]
+
+
+async def test_flow_with_working_crm(
+    config: ClientConfig,
+    translator: Translator,
+    session_factory: SessionFactory,
+    telegram: RecordingSession,
+) -> None:
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, json={"result": 901}))
+    messages = await order_with_crm(config, translator, session_factory, telegram, transport)
+    assert [message.chat_id for message in messages] == [config.owner_chat_id, USER_ID]
+    assert "Bitrix24: сделка №901" in str(messages[0].text)
+    assert "Заказ №1 принят" in str(messages[1].text)
+    assert (await fetch_orders(session_factory))[0].bitrix_deal_id == 901
+
+
+async def test_flow_with_failing_crm(
+    config: ClientConfig,
+    translator: Translator,
+    session_factory: SessionFactory,
+    telegram: RecordingSession,
+) -> None:
+    transport = httpx.MockTransport(lambda request: httpx.Response(503, text="unavailable"))
+    messages = await order_with_crm(config, translator, session_factory, telegram, transport)
+    assert [message.chat_id for message in messages] == [config.owner_chat_id, USER_ID]
+    assert "сделку создать не удалось" in str(messages[0].text)
+    assert "Заказ №1 принят" in str(messages[1].text)
+    orders = await fetch_orders(session_factory)
+    assert len(orders) == 1
+    assert orders[0].bitrix_deal_id is None

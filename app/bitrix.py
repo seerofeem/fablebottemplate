@@ -68,7 +68,7 @@ class BitrixClient:
             "crm.deal.add",
             {
                 "TITLE": f"{self._shop_name}: Telegram #{order.id}",
-                "CONTACT_ID": contact_id,
+                "CONTACT_IDS": [contact_id],
                 "OPENED": "Y",
                 "OPPORTUNITY": order.total,
                 "CURRENCY_ID": order.currency,

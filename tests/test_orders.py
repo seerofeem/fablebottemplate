@@ -100,7 +100,7 @@ async def test_order_creates_deal_and_notifies_owner(
     assert contact["NAME"] == "Айгерим"
     assert contact["PHONE"] == [{"VALUE": "+77011234567", "VALUE_TYPE": "MOBILE"}]
     deal = bitrix.requests[1][1]["fields"]
-    assert deal["CONTACT_ID"] == 55
+    assert deal["CONTACT_IDS"] == [55]
     assert deal["OPPORTUNITY"] == 52000
     assert deal["CURRENCY_ID"] == "KZT"
     assert deal["TITLE"] == "Gül Almaty: Telegram #1"

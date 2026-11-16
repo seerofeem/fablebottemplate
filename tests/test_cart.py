@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,7 +18,7 @@ from app.cart import (
 )
 from app.config import ClientConfig
 from app.i18n import Translator
-from app.texts import cart_text, format_money
+from app.texts import cart_text, format_money, local_time
 from tests.conftest import USER_ID
 
 
@@ -119,3 +122,11 @@ async def test_cart_text_shows_lines_and_total(
     assert "1. 25 красных роз — 2 × 24 900 ₸ = 49 800 ₸" in text
     assert "Итого: 49 800 ₸" in text
     assert "Себет бос" in cart_text(translator, "kk", Cart(), "KZT")
+
+
+def test_local_time_treats_naive_values_as_utc() -> None:
+    zone = ZoneInfo("Asia/Almaty")
+    naive = datetime(2026, 11, 16, 10, 30)
+    aware = datetime(2026, 11, 16, 10, 30, tzinfo=UTC)
+    assert local_time(naive, zone).strftime("%d.%m %H:%M") == "16.11 15:30"
+    assert local_time(aware, zone) == local_time(naive, zone)

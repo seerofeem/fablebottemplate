@@ -20,7 +20,9 @@ Localized = dict[str, str]
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore", hide_input_in_errors=True
+    )
 
     bot_token: str = Field(min_length=1)
     bitrix_webhook_url: str = ""
