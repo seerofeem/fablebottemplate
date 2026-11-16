@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import sys
 
 import httpx
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.exceptions import TelegramUnauthorizedError
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.utils.token import TokenValidationError
+from pydantic import ValidationError
 
 from app.bitrix import BitrixClient
 from app.config import ClientConfig, Settings, load_client_config
@@ -64,7 +68,14 @@ async def run() -> None:
 
 
 def main() -> None:
-    asyncio.run(run())
+    try:
+        asyncio.run(run())
+    except (ValidationError, ValueError, OSError) as exc:
+        logger.error("Configuration error, fix .env or client.yaml: %s", exc)
+        sys.exit(1)
+    except (TokenValidationError, TelegramUnauthorizedError):
+        logger.error("Telegram rejected BOT_TOKEN, check the value in .env")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
