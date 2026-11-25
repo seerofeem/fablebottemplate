@@ -22,6 +22,18 @@ If Bitrix24 is down or rejects the request, the order is still saved, the error 
 
 Orders placed outside working hours are accepted. The customer is told the order will be handled during working hours.
 
+### AI assistant (optional)
+
+With `ASSISTANT_ENABLED=true`, customers can type a question instead of pressing buttons: "Сколько стоят пионы?", "Доставляете в воскресенье?", "Қалай төлеуге болады?". The bot answers in the customer's language through the Claude API (`claude-opus-5-5` by default).
+
+- The answer uses only facts from `client.yaml`: catalog and prices, delivery options, working hours, and the optional `faq` notes. The model is told not to invent prices, discounts or contacts, and to say it does not know when the answer is not there.
+- It never takes orders or payment details. It points the customer to the catalog button instead.
+- Text typed during checkout (name, phone, address) goes to checkout, never to the assistant. The owner chat is never answered.
+- Each customer gets `ASSISTANT_DAILY_LIMIT` questions per day (default 20), which caps API spend for a public bot.
+- If the API is down, rate-limited or declines a question, the customer gets a short fallback message and the menu. Requests use server-side refusal fallbacks (`fallbacks: "default"`), so a declined request is retried on another model before giving up.
+
+With the assistant off, free text is ignored, as before.
+
 ## Launch for a new client
 
 You need Docker with Docker Compose and a bot token from [@BotFather](https://t.me/BotFather).
@@ -99,6 +111,7 @@ The file is validated at start. Unknown fields, missing translations, duplicate 
 | `categories[].products[].price` | whole number | More than 0 |
 | `categories[].products[].photo_url` | URL | Optional. Public `https` link to a JPG or PNG. If Telegram cannot load it, the product is sent as text |
 | `categories[].products[].description` | texts by language | |
+| `faq` | list of texts by language | Optional. Extra facts for the AI assistant: payment methods, delivery area, return rules |
 
 An ID is 1 to 32 characters of `a-z`, `0-9` and `_`.
 
@@ -121,8 +134,12 @@ The shipped `client.yaml` is a complete example for a fictional flower shop in A
 | `BOT_TOKEN` | yes | Token from @BotFather |
 | `CRM_ENABLED` | no | `true` sends orders to Bitrix24. Default `false`: orders go only to the owner chat |
 | `BITRIX_WEBHOOK_URL` | when `CRM_ENABLED=true` | Inbound webhook URL, must start with `https://` |
+| `ASSISTANT_ENABLED` | no | `true` turns on the AI assistant. Default `false` |
+| `ANTHROPIC_API_KEY` | when `ASSISTANT_ENABLED=true` | Claude API key from the Claude Console |
+| `ASSISTANT_MODEL` | no | Claude model ID. Default `claude-opus-5-5` |
+| `ASSISTANT_DAILY_LIMIT` | no | Questions per customer per day. Default `20` |
 
-Never commit `.env`. The webhook URL is a secret: anyone who has it can write to the CRM.
+Never commit `.env`. The webhook URL and the API key are secrets: anyone who has the webhook URL can write to the CRM, and anyone who has the API key can spend your Claude credits.
 
 ## Bitrix24 webhook setup
 
@@ -174,10 +191,11 @@ app/config.py      settings from .env and client.yaml validation
 app/cart.py        cart storage and math
 app/orders.py      order creation, CRM call, owner notification
 app/bitrix.py      Bitrix24 webhook client
+app/assistant.py   Claude API assistant: shop facts prompt, daily limit
 app/texts.py       message formatting
 app/keyboards.py   inline and reply keyboards
-app/handlers/      start, catalog, cart, checkout, owner commands
+app/handlers/      start, catalog, cart, checkout, owner commands, assistant
 locales/           bot texts in Russian and Kazakh
-tests/             config, cart, orders with mocked Bitrix24, full bot flow
+tests/             config, cart, orders with mocked Bitrix24, full bot flow, assistant
 client.yaml        per-client configuration
 ```

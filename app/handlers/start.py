@@ -6,21 +6,28 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.assistant import Answerer
 from app.config import ClientConfig, pick
 from app.handlers.common import HasMessage, Routes, payload, save_language
-from app.i18n import Translator
+from app.i18n import Markup, Translator, join_lines
 from app.keyboards import language_keyboard, menu_keyboard
 
 router = Routes("start", callback_filters=(HasMessage(),))
 
 
-async def send_menu(msg: Message, config: ClientConfig, translator: Translator, lang: str) -> None:
-    await msg.answer(
-        translator.t(
-            lang, "welcome", shop=config.shop.name, welcome=pick(config.shop.welcome, lang)
-        ),
-        reply_markup=menu_keyboard(config, translator, lang),
+async def send_menu(
+    msg: Message,
+    config: ClientConfig,
+    translator: Translator,
+    lang: str,
+    assistant: Answerer | None = None,
+) -> None:
+    text = translator.t(
+        lang, "welcome", shop=config.shop.name, welcome=pick(config.shop.welcome, lang)
     )
+    if assistant is not None:
+        text = join_lines([text, Markup(""), translator.t(lang, "assistant_hint")])
+    await msg.answer(text, reply_markup=menu_keyboard(config, translator, lang))
 
 
 @router.message(CommandStart())
@@ -32,6 +39,7 @@ async def start(
     translator: Translator,
     lang: str,
     user_id: int,
+    assistant: Answerer | None,
 ) -> None:
     if await state.get_state() is not None:
         await state.clear()
@@ -44,7 +52,7 @@ async def start(
         )
         return
     await save_language(session, user_id, lang)
-    await send_menu(message, config, translator, lang)
+    await send_menu(message, config, translator, lang, assistant)
 
 
 @router.callback_query(F.data.startswith("lang:"))
@@ -55,13 +63,14 @@ async def choose_language(
     config: ClientConfig,
     translator: Translator,
     user_id: int,
+    assistant: Answerer | None,
 ) -> None:
     code = payload(callback)
     if code not in config.shop.languages:
         code = config.default_language
     await save_language(session, user_id, code)
     await callback.answer()
-    await send_menu(msg, config, translator, code)
+    await send_menu(msg, config, translator, code, assistant)
 
 
 @router.callback_query(F.data == "language")
@@ -74,10 +83,15 @@ async def change_language(
 
 @router.callback_query(F.data == "menu")
 async def menu(
-    callback: CallbackQuery, msg: Message, config: ClientConfig, translator: Translator, lang: str
+    callback: CallbackQuery,
+    msg: Message,
+    config: ClientConfig,
+    translator: Translator,
+    lang: str,
+    assistant: Answerer | None,
 ) -> None:
     await callback.answer()
-    await send_menu(msg, config, translator, lang)
+    await send_menu(msg, config, translator, lang, assistant)
 
 
 @router.callback_query(F.data == "noop")

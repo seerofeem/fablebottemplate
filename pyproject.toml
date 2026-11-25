@@ -9,6 +9,7 @@ description = "Reusable Telegram shop bot template with Bitrix24 integration"
 requires-python = ">=3.12"
 dependencies = [
     "aiogram>=3.13,<4",
+    "anthropic>=1.17,<2",
     "SQLAlchemy[asyncio]>=2.0,<3",
     "aiosqlite>=0.20",
     "pydantic>=2.7,<3",
