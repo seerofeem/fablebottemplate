@@ -29,11 +29,21 @@ class Settings(BaseSettings):
     crm_enabled: bool = False
     client_config: Path = Path("client.yaml")
     database_path: Path = Path("data/shop.db")
+    assistant_enabled: bool = False
+    anthropic_api_key: str = ""
+    assistant_model: str = "claude-opus-5-5"
+    assistant_daily_limit: int = Field(default=20, ge=1)
 
     @model_validator(mode="after")
     def check_crm(self) -> Self:
         if self.crm_enabled and not self.bitrix_webhook_url.startswith("https://"):
             raise ValueError("BITRIX_WEBHOOK_URL must be an https URL when CRM_ENABLED is true")
+        return self
+
+    @model_validator(mode="after")
+    def check_assistant(self) -> Self:
+        if self.assistant_enabled and not self.anthropic_api_key:
+            raise ValueError("ANTHROPIC_API_KEY must be set when ASSISTANT_ENABLED is true")
         return self
 
 
@@ -95,6 +105,7 @@ class ClientConfig(StrictModel):
     working_hours: dict[str, str]
     delivery: list[DeliveryOption] = Field(min_length=1)
     categories: list[Category] = Field(min_length=1)
+    faq: list[Localized] = Field(default_factory=list)
 
     @field_validator("owner_chat_id")
     @classmethod
@@ -132,6 +143,8 @@ class ClientConfig(StrictModel):
             for product in category.products:
                 self._check_localized(f"product {product.id} name", product.name)
                 self._check_localized(f"product {product.id} description", product.description)
+        for index, note in enumerate(self.faq, start=1):
+            self._check_localized(f"faq item {index}", note)
         return self
 
     @staticmethod
